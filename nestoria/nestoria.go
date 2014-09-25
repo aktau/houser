@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aktau/houser"
 )
@@ -85,7 +86,11 @@ func (n *Nestoria) Search(query *houser.Query) ([]*houser.Listing, error) {
 	}
 
 	var clistings []*houser.Listing
+	maxDaysSinceUpdate := time.Since(query.UpdatedSince).Hours() / 24
 	for _, l := range listings.Response.Listings {
+		if l.DaysSinceUpdate > maxDaysSinceUpdate {
+			continue
+		}
 		l.Finish()
 		clistings = append(clistings, l.ToGeneric())
 	}
@@ -120,7 +125,9 @@ func searchListings(host string, query *houser.Query) (*http.Response, error) {
 		v.Set("size_max", strconv.Itoa(int(query.AreaMax)))
 	}
 	if !query.UpdatedSince.IsZero() {
-		v.Set("updated_min", strconv.Itoa(int(query.UpdatedSince.UTC().Unix())))
+		// the updated_min paramer doesn't properly work, so disabling it
+		// now and providing the same functionality via post-processing
+		// v.Set("updated_min", strconv.Itoa(int(query.UpdatedSince.UTC().Unix())))
 	}
 	return http.Get(genURL(host, v).String())
 }
