@@ -34,6 +34,29 @@ type Listing struct {
 	Currency  Currency
 }
 
+type Listings []*Listing
+
+// returns true if the Listing passes all filters
+func all(listing *Listing, fs ...func(l *Listing) bool) bool {
+	for _, filter := range fs {
+		if !filter(listing) {
+			return false
+		}
+	}
+	return true
+}
+
+// filters a list of Listings according to the passed in filters
+func (ls Listings) Filter(fs ...func(l *Listing) bool) Listings {
+	var nls Listings
+	for _, listing := range ls {
+		if all(listing, fs...) {
+			nls = append(nls, listing)
+		}
+	}
+	return nls
+}
+
 type lessFunc func(p1, p2 *Listing) bool
 
 // multiSorter implements the Sort interface, sorting the changes within.

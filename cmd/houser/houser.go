@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/smtp"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/aktau/houser"
 	"github.com/aktau/houser/nestoria"
@@ -40,7 +42,7 @@ func rmain() error {
 		fmt.Printf("Going to send mail to %s via %s\n", *mailDst, *mailUser)
 	}
 
-	nestoria.DEBUG = true
+	// nestoria.DEBUG = true
 
 	s, err := nestoria.New("deutschland")
 	if err != nil {
@@ -53,12 +55,12 @@ func rmain() error {
 		PriceMin:        500,
 		PriceMax:        1600,
 		AreaMin:         45,
-		// UpdatedSince:    time.Now().AddDate(0, 0, -24),
+		UpdatedSince:    time.Now().AddDate(0, 0, -31),
 	}
 
 	locations := []string{
 		"Sendling-Westpark",
-		// "Maxvorstadt",
+		"Maxvorstadt",
 		// "lehel_muenchen",
 		// "schwabing-ost",
 		// "schwabing-west",
@@ -69,11 +71,32 @@ func rmain() error {
 	var buf bytes.Buffer
 	w := io.MultiWriter(os.Stdout, &buf)
 
+	var body bytes.Buffer
+	var bodyw io.Writer
+	if *mailEnabled {
+		bodyw = &body
+	} else {
+		bodyw = ioutil.Discard
+	}
+
+	bodyw.Write([]byte(`<html><body>`))
 	var listings []*houser.Listing
 	for _, loc := range locations {
 		q.City = loc
 		listings = searchAndOutput(w, s, q)
+
+		title := fmt.Sprintf("%s: sorted by price", loc)
+		if err := PrintHTML(bodyw, title, listings); err != nil {
+			return err
+		}
+
+		title = fmt.Sprintf("%s: only 2.5 rooms or better", loc)
+		moreRooms := houser.Listings(listings).Filter(fRooms(2.5))
+		if err := PrintHTML(bodyw, title, moreRooms); err != nil {
+			return err
+		}
 	}
+	bodyw.Write([]byte(`</body></html>`))
 
 	if !*mailEnabled {
 		return nil
@@ -93,17 +116,19 @@ func rmain() error {
 	pass := *mailPass
 
 	fmt.Println("sending mail from account", *mailUser, "over server", host, port)
-	var body bytes.Buffer
-	if err := PrintHTML(&body, listings); err != nil {
-		return err
-	}
-	subject := "Subject: Test email from Go!\n"
+	subject := "Subject: Houser update\n"
 	err = sendMailHTML(user, pass, host, port, subject, body.String(), []string{*mailDst})
 	if err != nil {
 		return fmt.Errorf("could not send mail: %v", err)
 	}
 
 	return nil
+}
+
+func sPrice(c1, c2 *houser.Listing) bool { return c1.Price < c2.Price }
+func sRooms(c1, c2 *houser.Listing) bool { return c1.Rooms < c2.Rooms }
+func fRooms(minrooms float64) func(l *houser.Listing) bool {
+	return func(l *houser.Listing) bool { return l.Rooms >= minrooms }
 }
 
 func searchAndOutput(w io.Writer, s houser.Repo, q *houser.Query) []*houser.Listing {
@@ -113,9 +138,7 @@ func searchAndOutput(w io.Writer, s houser.Repo, q *houser.Query) []*houser.List
 		os.Exit(1)
 	}
 
-	sbPrice := func(c1, c2 *houser.Listing) bool { return c1.Price < c2.Price }
-	sbRooms := func(c1, c2 *houser.Listing) bool { return c1.Rooms < c2.Rooms }
-	houser.OrderedBy(sbPrice, sbRooms).Sort(listings)
+	houser.OrderedBy(sPrice, sRooms).Sort(listings)
 
 	fmt.Fprintln(w, q.City, "\n===================")
 	PrintTabulated(w, listings)

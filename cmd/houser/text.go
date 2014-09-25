@@ -23,55 +23,55 @@ func PrintTabulated(w io.Writer, listings []*houser.Listing) {
 }
 
 type MailTemplateData struct {
+	Title    string
 	Listings []*houser.Listing
 }
 
 var emailTpl = `
-<html>
-	<table>
-		<thead>
+<h3>{{.Title}}</h3>
+<table>
+	<thead>
+		<tr>
+			<th>Updated</th>
+			<th>Type</th>
+			<th>Area</th>
+			<th>Rooms</th>
+			<th>Price</th>
+			<th>Constr.</th>
+			<th>Title</th>
+			<th>Summary</th>
+			<th>Keywords</th>
+		</tr>
+	</thead>
+	<tbody>
+		{{range $index, $listing := .Listings}}
 			<tr>
-				<th>Updated</th>
-				<th>Type</th>
-				<th>Area</th>
-				<th>Rooms</th>
-				<th>Price</th>
-				<th>Constr.</th>
-				<th>Title</th>
-				<th>Summary</th>
-				<th>Keywords</th>
+				<td>{{$listing.DaysSinceUpdate}}</td>
+				<td>{{$listing.Type}}</td>
+				<td>{{$listing.Area}}m²</td>
+				<td>{{$listing.Rooms}}</td>
+				<td>{{currencySymbol $listing.Currency}}{{$listing.Price}}</td>
+				<td>{{$listing.ConstructionYear}}</td>
+				<td><a href="{{$listing.URL}}">{{$listing.Title}}</a></td>
+				<td>{{$listing.Description}}</td>
+				<td>{{$listing.Keywords}}</td>
 			</tr>
-		</thead>
-		<tbody>
-			{{range $index, $listing := .Listings}}
-				<tr>
-					<td>{{$listing.DaysSinceUpdate}}</td>
-					<td>{{$listing.Type}}</td>
-					<td>{{$listing.Area}}m²</td>
-					<td>{{$listing.Rooms}}</td>
-					<td>{{currencySymbol $listing.Currency}}{{$listing.Price}}</td>
-					<td>{{$listing.ConstructionYear}}</td>
-					<td><a href="{{$listing.URL}}">{{$listing.Title}}</a></td>
-					<td>{{$listing.Description}}</td>
-					<td>{{$listing.Keywords}}</td>
-				</tr>
-			{{end}}
-		</tbody>
-	</table>
-</html>`
+		{{end}}
+	</tbody>
+</table>`
 
 var funcMap = template.FuncMap{
 	"currencySymbol": currencySymbol,
 }
 
 // Output the listings as html to an io.Writer, decent for websites and mail
-func PrintHTML(w io.Writer, listings []*houser.Listing) error {
+func PrintHTML(w io.Writer, title string, listings []*houser.Listing) error {
 	t, err := template.New("email").Funcs(funcMap).Parse(emailTpl)
 	if err != nil {
 		return err
 	}
 
-	if t.Execute(w, MailTemplateData{Listings: listings}) != nil {
+	if t.Execute(w, MailTemplateData{Title: title, Listings: listings}) != nil {
 		return err
 	}
 
