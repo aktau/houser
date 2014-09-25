@@ -1,7 +1,6 @@
 package nestoria
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
@@ -13,19 +12,19 @@ type NestoriaListing struct {
 	Description         string  `json:"summary"`
 	URL                 string  `json:"lister_url"`
 	Comission           float64 `json:"comission,string"` // a multiplier or percentage?
-	CarSpaces           *string `json:"car_spaces"`
+	CarSpaces           *uint   `json:"car_spaces"`
 	Source              string  `json:"datasource_name"`
-	ConstructionYearRaw *string `json:"construction_year"` // actually an int, needs to be parsed separately...
+	ConstructionYearRaw *uint   `json:"construction_year"` // actually an int, needs to be parsed separately...
 	ConstructionYear    uint    `json:"-"`
-	Floor               int     `json:"floor,string"`
+	Floor               int     `json:"floor"`
 	Guid                string  `json:"guid"`
 	Rooms               float64 `json:"room_number"`
 	Type                string  `json:"property_type"`
 	Keywords            string  `json:"keywords"`
 
-	Lister string `json:"string"` // the person or company who posted the listing
+	Lister *string `json:"lister_name"` // the person or company who posted the listing
 
-	Size     uint   `json:"size,string"`
+	Size     uint   `json:"size"`
 	SizeUnit string `json:"size_unit"`
 
 	Price     uint   `json:"price"`
@@ -38,8 +37,7 @@ type NestoriaListing struct {
 
 func (n *NestoriaListing) Finish() {
 	if n.ConstructionYearRaw != nil {
-		constr, _ := strconv.Atoi(*n.ConstructionYearRaw)
-		n.ConstructionYear = uint(constr)
+		n.ConstructionYear = *n.ConstructionYearRaw
 	}
 }
 
